@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kostenabrechnung DIESEL WI AP 98</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e293b">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { 
+            background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%); 
+            color: #f1f5f9; 
+            font-family: 'Inter', sans-serif; 
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .input-field { 
+            background: #0f172a; 
+            border: 1px solid #334155; 
+            padding: 12px; 
+            border-radius: 8px; 
+            color: #f1f5f9; 
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        .input-field:focus { 
+            border-color: #eab308; 
+            outline: none; 
+            ring: 2px ring #eab308;
+        }
+        th { 
+            background: #1e293b; 
+            color: #94a3b8; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            letter-spacing: 0.05em; 
+        }
+        .consumption-badge {
+            color: #000 !important;
+            font-weight: 900;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .c-ultra-green { background: #16a34a !important; color: white !important; }
+        .c-soft-green { background: #86efac !important; color: #064e3b !important; }
+        .c-orange { background: #fb923c !important; color: #431407 !important; }
+        .c-red { background: #ef4444 !important; color: white !important; }
+        .c-blood-red { background: #7f1d1d !important; color: #fee2e2 !important; }
+        .c-none { background: #475569 !important; color: white !important; }
+
+        .badge-teil {
+            background: #3b82f6 !important;
+            color: white !important;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .btn-delete {
+            color: #ef4444;
+            transition: all 0.2s;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-delete:hover {
+            color: #b91c1c;
+            transform: scale(1.2);
+        }
+        .month-summary {
+            background: rgba(234, 179, 8, 0.15) !important;
+            font-weight: 800;
+            border-top: 2px solid #eab308;
+            border-bottom: 2px solid #eab308;
+        }
+        #chartContainer {
+            max-height: 300px;
+            margin-bottom: 2rem;
+        }
+
+        /* --- NYOMTATÁSI BEÁLLÍTÁSOK --- */
+        @page {
+            size: A4;
+            margin: 15mm; 
+        }
+
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            header {
+                display: block !important;
+                text-align: center !important;
+                border-bottom: 2px solid #ddd !important;
+                padding-bottom: 10px !important;
+                margin-bottom: 20px !important;
+            }
+            header div {
+                text-align: center !important;
+                width: 100% !important;
+            }
+            h1 { color: black !important; font-size: 24pt !important; text-align: center !important; }
+            p { color: #555 !important; text-align: center !important; }
+            
+            header button, 
+            .no-print, 
+            .btn-delete,
+            #input-section,
+            #data-management,
+            #sync-warning {
+                display: none !important;
+            }
+            .glass-panel {
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
+                backdrop-filter: none !important;
+                padding: 0 !important;
+                margin-bottom: 5mm !important;
+            }
+            table { 
+                width: 100% !important; 
+                border: 1px solid #ddd !important;
+                border-collapse: collapse !important;
+            }
+            th, td { border: 1px solid #ddd !important; }
+            tr { page-break-inside: avoid; }
+            
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 lg:p-12">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-end mb-8 border-b border-slate-700 pb-6">
+            <div class="w-full">
+                <h1 class="text-4xl md:text-5xl font-black tracking-tighter italic uppercase italic">
+                    Kostenabrechnung <span class="text-yellow-500 font-black">DIESEL WI AP 98</span>
+                </h1>
+                <p class="text-slate-400 mt-2 font-medium tracking-widest uppercase text-xs">Fahrtenbuch & Kraftstoffmanagement</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex gap-4 no-print">
+                <button onclick="exportToPDF()" class="text-xs bg-red-700 hover:bg-red-600 px-4 py-2 rounded font-bold uppercase tracking-tighter transition">Export (.PDF)</button>
+            </div>
+        </header>
+
+        <div id="sync-warning" class="bg-blue-900/30 border border-blue-500/50 p-4 rounded-xl mb-6 flex items-center justify-between no-print">
+            <div class="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <p class="text-xs text-blue-200 font-medium"><strong>Team-Modus:</strong> Wenn dein Kollege getankt hat, lade zuerst die neueste <span class="font-mono bg-slate-800 px-1 rounded">.json</span> (oder .csv) Datei herunter und importiere sie hier, bevor du eine neue Tour erfasst!</p>
+            </div>
+        </div>
+
+        <div id="data-management" class="flex flex-wrap gap-4 mb-10 no-print">
+            <button onclick="exportDataToFile()" class="text-xs bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded font-bold uppercase tracking-tighter transition flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                1. Daten Sichern (in Google Drive hochladen)
+            </button>
+            <label class="text-xs bg-emerald-700 hover:bg-emerald-600 px-4 py-2 rounded font-bold uppercase tracking-tighter transition cursor-pointer flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                2. Aktuelle Daten Laden (.JSON / .CSV)
+                <input type="file" id="importFile" accept=".json, .csv" class="hidden" onchange="importDataFromFile(event)">
+            </label>
+        </div>
+
+        <div id="input-section" class="glass-panel p-8 rounded-2xl mb-10 no-print">
+            <h2 class="text-sm font-bold mb-6 text-yellow-500 uppercase tracking-widest">Neue Tour Erfassen</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-6">
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-slate-400 ml-1">Anhänger</label>
+                    <input type="text" id="trailer" value="WI AP 514" class="input-field">
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-slate-400 ml-1">Ab Start (km)</label>
+                    <input type="number" id="startKm" class="input-field" placeholder="0">
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-slate-400 ml-1">Ende (km)</label>
+                    <input type="number" id="endKm" class="input-field" placeholder="0">
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-slate-400 ml-1">Getankt (L)</label>
+                    <input type="number" id="fuel" class="input-field" step="0.01" placeholder="0.00">
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-slate-400 ml-1">Typ</label>
+                    <select id="tankType" class="input-field">
+                        <option value="Voll">Vollbetankung</option>
+                        <option value="Teil">Teilbetankung</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-slate-400 ml-1">Datum (TT.MM.JJJJ)</label>
+                    <input type="text" id="date" class="input-field" placeholder="DD.MM.YYYY">
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-slate-400 ml-1">Tankstelle</label>
+                    <input type="text" id="station" class="input-field" placeholder="Ort/Name">
+                </div>
+            </div>
+            <button onclick="addData()" class="w-full mt-8 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black py-4 rounded-xl uppercase tracking-widest transition-all shadow-lg shadow-yellow-500/20">
+                Tour Speichern
+            </button>
+        </div>
+
+        <div id="chartWrapper" class="glass-panel p-6 rounded-2xl mb-10 hidden">
+            <h2 class="text-sm font-bold mb-4 text-yellow-500 uppercase tracking-widest text-center">Verbrauchsanalyse pro Jahr (Monatsabschluss)</h2>
+            <div id="chartContainer"></div>
+        </div>
+
+        <div class="glass-panel rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="mainTable">
+                    <thead>
+                        <tr>
+                            <th class="p-5">Trip / Km</th>
+                            <th class="p-5">Anhänger</th>
+                            <th class="p-5">Datum</th>
+                            <th class="p-5 text-right">Strecke</th>
+                            <th class="p-5 text-right">Liter</th>
+                            <th class="p-5">Standort / Typ</th>
+                            <th class="p-5 text-center bg-slate-800/50">Ø / 100 km</th>
+                            <th class="p-5 text-center no-print">Aktion</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-800"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="mt-8 flex justify-between items-center text-slate-500 no-print">
+            <p class="text-xs uppercase tracking-widest">Systemstatus: <span class="text-green-500 font-bold">LOKALER SPEICHER AKTIV</span></p>
+            <button onclick="clearData()" class="text-xs hover:text-red-500 transition uppercase font-bold tracking-widest">Datenbank Zurücksetzen</button>
+        </div>
+    </div>
+
+    <script>
+        let logs = JSON.parse(localStorage.getItem('truck_logs_v2')) || [];
+        let myCharts = [];
+
+        function getGermanToday() {
+            const today = new Date();
+            const d = String(today.getDate()).padStart(2, '0');
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const y = today.getFullYear();
+            return `${d}.${m}.${y}`;
+        }
+
+        function splitCSV(str, delimiter) {
+            const result = [];
+            let cur = '';
+            let inQuotes = false;
+            for (let i = 0; i < str.length; i++) {
+                const char = str[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                    result.push(cur.trim());
+                    cur = '';
+                } else {
+                    cur += char;
+                }
+            }
+            result.push(cur.trim());
+            return result;
+        }
+
+        function parseMixedNumber(str) {
+            if (str === null || str === undefined) return NaN;
+            let s = String(str).replace(/[^\d.,-]/g, '');
+            if (s === '') return NaN;
+            if (s.includes(',')) {
+                s = s.replace(/\./g, '').replace(',', '.');
+                return parseFloat(s);
+            } 
+            if (s.includes('.')) {
+                const parts = s.split('.');
+                const lastPart = parts[parts.length - 1];
+                if (lastPart.length === 3) {
+                    s = s.replace(/\./g, '');
+                    return parseFloat(s);
+                }
+            }
+            return parseFloat(s);
+        }
+
+        function getColorClass(cons) {
+            if (cons === "---") return "c-none";
+            const val = parseFloat(cons);
+            if (val < 26.00) return "c-ultra-green";
+            if (val >= 26.00 && val < 27.00) return "c-soft-green";
+            if (val >= 27.00 && val < 28.50) return "c-orange";
+            if (val >= 28.50 && val <= 30.00) return "c-red";
+            if (val > 30.00) return "c-blood-red";
+            return "c-none";
+        }
+
+        function updateStartKm() {
+            if (logs.length > 0) {
+                const lastEndKm = logs[logs.length - 1].endKm;
+                document.getElementById('startKm').value = lastEndKm;
+            } else {
+                document.getElementById('startKm').value = "";
+            }
+        }
+
+        function deleteEntry(index) {
+            if(confirm("Diesen Eintrag wirklich löschen?")) {
+                logs.splice(index, 1);
+                logs.forEach((log, i) => { log.trip = i + 1; });
+                localStorage.setItem('truck_logs_v2', JSON.stringify(logs));
+                renderTable();
+                updateStartKm();
+            }
+        }
+
+        function addData() {
+            const dateInput = document.getElementById('date').value;
+            const fields = {
+                trailer: document.getElementById('trailer').value,
+                start: parseFloat(document.getElementById('startKm').value),
+                end: parseFloat(document.getElementById('endKm').value),
+                fuel: parseFloat(document.getElementById('fuel').value),
+                tankType: document.getElementById('tankType').value,
+                date: dateInput || getGermanToday(),
+                station: document.getElementById('station').value
+            };
+            if(isNaN(fields.start) || isNaN(fields.end) || isNaN(fields.fuel)) { alert("Bitte alle Felder ausfüllen!"); return; }
+            const diff = fields.end - fields.start;
+            if(diff <= 0) { alert("Endkilometerstand zu niedrig!"); return; }
+
+            let consumption = "---";
+            if (fields.tankType === "Voll") {
+                let totalFuel = fields.fuel;
+                let totalDistance = diff;
+                for (let i = logs.length - 1; i >= 0; i--) {
+                    if (logs[i].tankType === "Voll") break;
+                    totalFuel += logs[i].fuel;
+                    totalDistance += logs[i].diff;
+                }
+                if (totalDistance > 0) consumption = ((totalFuel / totalDistance) * 100).toFixed(2);
+            }
+            logs.push({ ...fields, endKm: fields.end, diff, consumption, trip: logs.length + 1 });
+            localStorage.setItem('truck_logs_v2', JSON.stringify(logs));
+            renderTable();
+            updateStartKm();
+            document.getElementById('endKm').value = "";
+            document.getElementById('fuel').value = "";
+        }
+
+        function renderTable() {
+            const body = document.getElementById('tableBody');
+            body.innerHTML = "";
+            if (logs.length === 0) { document.getElementById('chartWrapper').classList.add('hidden'); return; }
+
+            const groups = {};
+            const lastFullTankInMonth = {};
+            logs.forEach((log, idx) => {
+                const monthKey = log.date.substring(3);
+                if (log.tankType === "Voll") lastFullTankInMonth[monthKey] = idx;
+            });
+
+            logs.forEach((log, idx) => {
+                const actualMonth = log.date.substring(3);
+                let targetMonth = actualMonth;
+                const months = Object.keys(lastFullTankInMonth).sort((a,b) => {
+                   const [mA, yA] = a.split('.').map(Number);
+                   const [mB, yB] = b.split('.').map(Number);
+                   return yA !== yB ? yA - yB : mA - mB;
+                });
+                for(let m of months) {
+                    if(idx <= lastFullTankInMonth[m]) { targetMonth = m; break; }
+                    else { targetMonth = months[months.indexOf(m) + 1] || actualMonth; }
+                }
+                if (!groups[targetMonth]) groups[targetMonth] = [];
+                groups[targetMonth].push({...log, originalIndex: idx});
+            });
+
+            const sortedMonthKeys = Object.keys(groups).sort((a, b) => {
+                const [mA, yA] = a.split('.').map(Number);
+                const [mB, yB] = b.split('.').map(Number);
+                return yA !== yB ? yA - yB : mA - mB;
+            });
+
+            const chartDataByYear = {};
+
+            [...sortedMonthKeys].reverse().forEach(mKey => {
+                const year = mKey.split('.')[1];
+                const mLogs = groups[mKey];
+                let mFuel = 0, mDist = 0;
+                mLogs.forEach(l => { mFuel += l.fuel; mDist += l.diff; });
+                if (mDist > 0) {
+                    if (!chartDataByYear[year]) { chartDataByYear[year] = { labels: [], data: [] }; }
+                    chartDataByYear[year].labels.push(mKey);
+                    chartDataByYear[year].data.push(((mFuel / mDist) * 100).toFixed(2));
+                }
+            });
+
+            [...sortedMonthKeys].reverse().forEach(mKey => {
+                const mLogs = groups[mKey];
+                let mFuel = 0, mDist = 0;
+                mLogs.forEach(l => { mFuel += l.fuel; mDist += l.diff; });
+                const mAvg = (mDist > 0) ? ((mFuel / mDist) * 100).toFixed(2) : "---";
+                const cClass = getColorClass(mAvg);
+                body.innerHTML += `<tr class="month-summary"><td colspan="3" class="p-4 text-yellow-500 uppercase tracking-tighter italic font-black">Abschluss bis Vollbetankung: ${mKey}</td><td class="p-4 text-right font-mono text-sm">${mDist.toLocaleString('de-DE')} KM</td><td class="p-4 text-right font-mono text-sm">${mFuel.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} L</td><td class="p-4 italic text-[10px] text-slate-400 text-center uppercase">Bilanz</td><td class="p-4 text-center"><span class="consumption-badge ${cClass}">${mAvg} L</span></td><td class="no-print"></td></tr>`;
+
+                [...mLogs].reverse().forEach(log => {
+                    const consColor = getColorClass(log.consumption);
+                    body.innerHTML += `<tr class="hover:bg-slate-800/30 transition border-l-4 ${log.tankType === 'Voll' ? 'border-green-500' : 'border-blue-500'}"><td class="p-5 whitespace-nowrap"><div class="font-bold text-yellow-500">#${log.trip}</div><div class="text-[10px] text-slate-500 font-mono">${log.start.toLocaleString('de-DE')} - ${log.end.toLocaleString('de-DE')}</div></td><td class="p-5 font-medium">${log.trailer}</td><td class="p-5 text-sm font-mono">${log.date}</td><td class="p-5 text-right font-mono">${log.diff.toLocaleString('de-DE')} <span class="text-slate-500 text-[10px]">KM</span></td><td class="p-5 text-right font-mono">${log.fuel.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span class="text-slate-500 text-[10px]">L</span></td><td class="p-5 text-sm italic text-slate-400">${log.station} <span class="${log.tankType === 'Teil' ? 'badge-teil' : 'text-[10px] text-green-500'} ml-2 font-bold uppercase">${log.tankType}</span></td><td class="p-5 text-center bg-slate-800/30 font-bold"><span class="consumption-badge ${consColor}">${log.consumption !== "---" ? log.consumption + " L" : "---"}</span></td><td class="p-5 text-center no-print"><button onclick="deleteEntry(${log.originalIndex})" class="btn-delete" title="Löschen"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></td></tr>`;
+                });
+            });
+
+            if (Object.keys(chartDataByYear).length > 0) { 
+                document.getElementById('chartWrapper').classList.remove('hidden'); 
+                updateCharts(chartDataByYear); 
+            } else { 
+                document.getElementById('chartWrapper').classList.add('hidden'); 
+            }
+        }
+
+        function updateCharts(dataByYear) {
+            const container = document.getElementById('chartContainer');
+            myCharts.forEach(chart => chart.destroy());
+            myCharts = [];
+            container.innerHTML = '';
+
+            const years = Object.keys(dataByYear).sort((a,b) => b - a);
+
+            years.forEach(year => {
+                const yearData = dataByYear[year];
+                const wrapper = document.createElement('div');
+                wrapper.className = 'mb-8';
+                
+                const title = document.createElement('h3');
+                title.className = 'text-xs font-bold text-slate-400 mb-2 text-center uppercase tracking-widest';
+                title.innerText = `Jahr ${year}`;
+                wrapper.appendChild(title);
+
+                const canvasWrapper = document.createElement('div');
+                canvasWrapper.style.height = '200px'; 
+                const canvas = document.createElement('canvas');
+                canvasWrapper.appendChild(canvas);
+                wrapper.appendChild(canvasWrapper);
+                container.appendChild(wrapper);
+
+                const ctx = canvas.getContext('2d');
+                const newChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { 
+                        labels: yearData.labels, 
+                        datasets: [{ 
+                            label: `Ø Verbrauch ${year} (L/100km)`, 
+                            data: yearData.data, 
+                            borderColor: '#eab308', 
+                            backgroundColor: 'rgba(234, 179, 8, 0.2)', 
+                            borderWidth: 3, 
+                            fill: true, 
+                            tension: 0.4, 
+                            pointRadius: 5, 
+                            pointBackgroundColor: '#eab308' 
+                        }] 
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, animation: false, 
+                        scales: { 
+                            y: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#94a3b8' } }, 
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } } 
+                        }, 
+                        plugins: { legend: { display: false } } 
+                    }
+                });
+                myCharts.push(newChart);
+            });
+        }
+
+        function exportToPDF() { window.print(); }
+
+        function exportDataToFile() {
+            if(logs.length === 0) { alert("Keine Daten zum Exportieren vorhanden."); return; }
+            const dataStr = JSON.stringify(logs, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `WI_AP_98_Datenbank.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importDataFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                if (file.name.toLowerCase().endsWith('.csv')) {
+                    try {
+                        const lines = content.split(/\r?\n/);
+                        let newLogs = [];
+                        let debugLog = [];
+                        
+                        let delimiter = ',';
+                        if (content.includes(';')) delimiter = ';';
+                        else if (content.includes('\t')) delimiter = '\t';
+                        
+                        for (let i = 0; i < lines.length; i++) {
+                            if (!lines[i].includes('WI AP')) continue;
+                            
+                            const parts = splitCSV(lines[i], delimiter);
+                            let offset = parts.findIndex(p => p.includes('WI AP'));
+                            
+                            if (offset === -1 || parts.length < offset + 8) {
+                                debugLog.push(`Sor ${i}: Hibás felépítés -> ` + lines[i]);
+                                continue;
+                            }
+                            
+                            const trailer = parts[offset].trim();
+                            const start = parseMixedNumber(parts[offset + 2]);
+                            const end = parseMixedNumber(parts[offset + 3]);
+                            const diff = parseMixedNumber(parts[offset + 4]);
+                            const fuel = parseMixedNumber(parts[offset + 6]);
+                            
+                            if (isNaN(start) || isNaN(end) || isNaN(fuel) || (start === 0 && end === 0)) {
+                                debugLog.push(`Sor ${i}: Hibás szám -> Start:${start}, End:${end}, Fuel:${fuel}`);
+                                continue;
+                            }
+
+                            let dateRaw = parts[offset + 5].trim();
+                            if(dateRaw === "1900-10-12") dateRaw = "12.04.2025"; 
+                            
+                            let dateStr = dateRaw;
+                            if (dateRaw.includes('-')) {
+                                const dParts = dateRaw.split('-');
+                                if (dParts.length === 3) dateStr = `${dParts[2].padStart(2, '0')}.${dParts[1].padStart(2, '0')}.${dParts[0]}`;
+                            } else if (dateRaw.includes('.')) {
+                                const dParts = dateRaw.split('.');
+                                if (dParts.length === 3) {
+                                    let year = dParts[2];
+                                    if (year.length === 2) year = '20' + year;
+                                    dateStr = `${dParts[0].padStart(2, '0')}.${dParts[1].padStart(2, '0')}.${year}`;
+                                }
+                            }
+                            
+                            let stationRaw = parts[offset + 7].trim();
+                            let tankType = "Voll";
+                            let station = stationRaw;
+                            if (stationRaw.includes('/ NV')) {
+                                tankType = "Teil";
+                                station = stationRaw.replace('/ NV', '').trim();
+                            }
+
+                            let consumption = "---";
+                            if (tankType === "Voll") {
+                                let totalFuel = fuel;
+                                let totalDist = diff;
+                                for (let j = newLogs.length - 1; j >= 0; j--) {
+                                    if (newLogs[j].tankType === "Voll") break;
+                                    totalFuel += newLogs[j].fuel;
+                                    totalDist += newLogs[j].diff;
+                                }
+                                if (totalDist > 0) consumption = ((totalFuel / totalDist) * 100).toFixed(2);
+                            }
+                            
+                            newLogs.push({ trailer, start, endKm: end, fuel, tankType, date: dateStr, station, diff, consumption, trip: newLogs.length + 1 });
+                        }
+                        
+                        if(newLogs.length > 0) {
+                            if (confirm(`${newLogs.length} Einträge aus CSV importieren? Aktuelle Daten werden überschrieben.`)) {
+                                logs = newLogs;
+                                localStorage.setItem('truck_logs_v2', JSON.stringify(logs));
+                                renderTable();
+                                updateStartKm();
+                                alert("CSV erfolgreich geladen!");
+                            }
+                        } else {
+                            alert("Kíméletlenül őszinte leszek: a fájlodban nem találtam érvényes adatot!\nNe nevezd át a .xlsx fájlt .csv-re, hanem használd az Excel 'Mentés másként -> CSV' opcióját!\n\nHibakereső napló (első hiba):\n" + (debugLog[0] || "Üres vagy hibás formátum."));
+                        }
+                    } catch (err) {
+                        alert("Kritischer Fehler beim CSV-Import! Részletek a konzolban.");
+                        console.error(err);
+                    }
+                } 
+                else if (file.name.toLowerCase().endsWith('.json')) {
+                    try {
+                        const importedLogs = JSON.parse(content);
+                        if(Array.isArray(importedLogs)) {
+                            if(confirm(`Möchten Sie ${importedLogs.length} Einträge laden? Aktuelle Daten werden überschrieben.`)) {
+                                logs = importedLogs;
+                                localStorage.setItem('truck_logs_v2', JSON.stringify(logs));
+                                renderTable();
+                                updateStartKm();
+                                alert("JSON erfolgreich geladen!");
+                            }
+                        } else { alert("Ungültiges Dateiformat!"); }
+                    } catch (err) { alert("Sérült JSON fájl. Valószínűleg rosszul lett összefűzve manuálisan."); }
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function clearData() {
+            if(confirm("Alle gespeicherten Daten wirklich löschen?")) {
+                localStorage.removeItem('truck_logs_v2'); logs = []; renderTable(); updateStartKm();
+            }
+        }
+
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('Service Worker regisztrálva!', reg);
+                }).catch(err => {
+                    console.warn('Service Worker hiba:', err);
+                });
+            });
+        }
+
+        document.getElementById('date').value = getGermanToday();
+        renderTable();
+        updateStartKm();
+    </script>
+</body>
+</html>
